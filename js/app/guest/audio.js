@@ -153,7 +153,6 @@
 //     };
 // })();
 
-
 import { progress } from './progress.js';
 import { util } from '../../common/util.js';
 import { request, HTTP_GET } from '../../connection/request.js';
@@ -184,7 +183,7 @@ export const audio = (() => {
     let isPlay = false;
     let ttl = 1000 * 60 * 60 * 6;  // Default TTL (Time to Live) dalam milidetik
 
-    const cacheName = 'AnugrahTerindah';
+    const cacheName = 'audio_v1'; // Add versioning to the cache name
     const type = 'audio/mpeg';
     const exp = 'x-expiration-time';
 
@@ -201,7 +200,7 @@ export const audio = (() => {
 
         music.disabled = true;
         try {
-            // Ensure audio is unmuted before playing
+            // Ensure audio is unmuted before playing (important for autoplay on iOS)
             howl.mute(false);  // Unmute audio if it's muted
             howl.play();       // Start playback
             isPlay = true;
@@ -251,23 +250,44 @@ export const audio = (() => {
     /**
      * @returns {Promise<string>}
      */
-    const getUrl = () => caches.open(cacheName)
-        .then((c) => c.match(url).then((res) => {
-            if (!res) {
-                return fetchPut(c);
+    const getUrl = () => {
+        // Check if the 'audio_v1' cache exists
+        caches.has('audio_v1').then((exists) => {
+            if (!exists) {
+                // If 'cache audio' doesn't exist, clear all caches except image-related caches
+                caches.keys().then((cacheNames) => {
+                    cacheNames.forEach((cacheName) => {
+                        if (!cacheName.includes('image') && cacheName !== 'audio_v1') { // Exclude 'image' and 'audio'
+                            caches.delete(cacheName).then(() => {
+                                console.log(`Cache deleted: ${cacheName}`);
+                            });
+                        }
+                    });
+                });
             }
-
-            if (Date.now() <= parseInt(res.headers.get(exp))) {
-                return res.blob();
-            }
-
-            return c.delete(url).then((s) => s ? fetchPut(c) : res.blob());
-        }))
-        .then((b) => {
-            const blobUrl = URL.createObjectURL(b);  // Create blob URL
-            console.log('Audio URL created:', blobUrl);  // Log the created blob URL for debugging
-            return blobUrl;
         });
+    
+        // Proceed with the audio cache handling (whether 'audio_v1' exists or not)
+        return caches.open(cacheName)
+            .then((c) => c.match(url).then((res) => {
+                if (!res) {
+                    return fetchPut(c); // Fetch the new audio if not cached
+                }
+    
+                // If the cache is still valid, return the cached blob
+                if (Date.now() <= parseInt(res.headers.get(exp))) {
+                    return res.blob();
+                }
+    
+                // If the cache is expired, delete it and fetch the new audio
+                return c.delete(url).then(() => fetchPut(c));
+            }))
+            .then((b) => {
+                const blobUrl = URL.createObjectURL(b);  // Create blob URL
+                console.log('Audio URL created:', blobUrl);  // Log the created blob URL for debugging
+                return blobUrl;
+            });
+    };
 
     /**
      * @param {number} num
