@@ -183,7 +183,7 @@ export const audio = (() => {
     let isPlay = false;
     let ttl = 1000 * 60 * 60 * 6;  // Default TTL (Time to Live) dalam milidetik
 
-    const cacheName = 'audio_v1.0'; // Add versioning to the cache name
+    const cacheName = 'audio_v1.1'; // Add versioning to the cache name
     const type = 'audio/mpeg';
     const exp = 'x-expiration-time';
 
