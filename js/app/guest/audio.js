@@ -183,7 +183,7 @@ export const audio = (() => {
     let isPlay = false;
     let ttl = 1000 * 60 * 60 * 6;  // Default TTL (Time to Live) dalam milidetik
 
-    const cacheName = 'audio'; // Add versioning to the cache name
+    const cacheName = 'audio_v1.0'; // Add versioning to the cache name
     const type = 'audio/mpeg';
     const exp = 'x-expiration-time';
 
@@ -250,25 +250,48 @@ export const audio = (() => {
     /**
      * @returns {Promise<string>}
      */
+
+    // Fungsi untuk menghapus cache lama
+    const clearOldCache = () => {
+        caches.keys().then((cacheNames) => {
+            cacheNames.forEach((name) => {
+                // Pertahankan cache gambar (misalnya cache yang mengandung 'image')
+                if (name.includes('image')) {
+                    console.log('Cache gambar dipertahankan:', name);
+                } else if (name !== cacheName) {
+                    // Hapus cache selain cache gambar dan cache terbaru
+                    caches.delete(name).then(() => {
+                        console.log('Cache lama telah dihapus:', name);
+                    });
+                }
+            });
+        });
+    };
+
+    // Fungsi untuk menyimpan dan memperbarui cache
     const getUrl = () => {
-        // Proceed with the audio cache handling (whether 'audio_v1' exists or not)
-        return caches.open(cacheName)
-            .then((c) => c.match(url).then((res) => {
-                if (!res) {
-                    return fetchPut(c); // Fetch the new audio if not cached
-                }
-    
-                // If the cache is still valid, return the cached blob
-                if (Date.now() <= parseInt(res.headers.get(exp))) {
-                    return res.blob();
-                }
-    
-                // If the cache is expired, delete it and fetch the new audio
-                return c.delete(url).then(() => fetchPut(c));
-            }))
-            .then((b) => {
-                const blobUrl = URL.createObjectURL(b);  // Create blob URL
-                console.log('Audio URL created:', blobUrl);  // Log the created blob URL for debugging
+        // Pastikan cache lama sudah dihapus sebelum membuat cache baru
+        clearOldCache();
+
+        return caches.open(cacheName)  // Gunakan cache baru dengan nama 'audio_v2'
+            .then((cache) => {
+                return cache.match(url).then((response) => {
+                    if (!response) {
+                        // Jika cache tidak ada, fetch dan simpan audio
+                        return fetchPut(cache);
+                    }
+
+                    // Periksa apakah cache masih valid berdasarkan TTL
+                    if (Date.now() <= parseInt(response.headers.get(exp))) {
+                        return response.blob();
+                    }
+
+                    // Hapus cache lama jika sudah kadaluarsa
+                    return cache.delete(url).then(() => fetchPut(cache));
+                });
+            })
+            .then((blob) => {
+                const blobUrl = URL.createObjectURL(blob);  // Membuat URL dari blob audio
                 return blobUrl;
             });
     };
