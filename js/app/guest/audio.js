@@ -183,7 +183,7 @@ export const audio = (() => {
     let isPlay = false;
     let ttl = 1000 * 60 * 60 * 6;  // Default TTL (Time to Live) dalam milidetik
 
-    const cacheName = 'audio_v1'; // Add versioning to the cache name
+    const cacheName = 'audio'; // Add versioning to the cache name
     const type = 'audio/mpeg';
     const exp = 'x-expiration-time';
 
@@ -251,22 +251,6 @@ export const audio = (() => {
      * @returns {Promise<string>}
      */
     const getUrl = () => {
-        // Check if the 'audio_v1' cache exists
-        caches.has('audio_v1').then((exists) => {
-            if (!exists) {
-                // If 'cache audio' doesn't exist, clear all caches except image-related caches
-                caches.keys().then((cacheNames) => {
-                    cacheNames.forEach((cacheName) => {
-                        if (!cacheName.includes('image') && cacheName !== 'audio_v1') { // Exclude 'image' and 'audio'
-                            caches.delete(cacheName).then(() => {
-                                console.log(`Cache deleted: ${cacheName}`);
-                            });
-                        }
-                    });
-                });
-            }
-        });
-    
         // Proceed with the audio cache handling (whether 'audio_v1' exists or not)
         return caches.open(cacheName)
             .then((c) => c.match(url).then((res) => {
